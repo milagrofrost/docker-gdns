@@ -56,7 +56,10 @@ if [ -n "$GCLOUD_AUTH" ]; then
   authFile=/root/gdns/auth.json
   type openssl >/dev/null 2>&1 || { echo >&2 "I require openssl but it's not installed.  Aborting."; exit 1; }
   echo ${GCLOUD_AUTH} | openssl enc -base64 -d > ${authFile} || exit 1
-  gcloud auth activate-service-account --key-file=${authFile} || exit 1
+  gcloud auth activate-service-account --key-file="${authFile}" ${GCLOUD_ACCOUNT} || exit 1
+elif [ -n "$GCLOUD_AUTH_FILE" ]; then
+  authFile=/config/${GCLOUD_AUTH_FILE}
+  gcloud auth activate-service-account --key-file="${authFile}" ${GCLOUD_ACCOUNT} || exit 1
 else
   echo "No auth file provided, please read README"
   exit 1
