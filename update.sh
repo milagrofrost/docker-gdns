@@ -104,14 +104,14 @@ do
   if [ "$IPV4" = "yes" ]; then
     IP4=$(dig o-o.myaddr.l.google.com @ns1.google.com TXT +short)
     echo "IPv4 address is ${IP4}"
-    gcloud dns record-sets transaction add --zone=${ZONE} --name="${NAME}" --type="A" --ttl="300" ${IP4} || gcloud dns record-sets transaction abort; exit 1
+    gcloud dns record-sets transaction add --zone=${ZONE} --name="${DOMAIN}." --type="A" --ttl="300" ${IP4} || gcloud dns record-sets transaction abort; exit 1
   fi
 
   if [ "$IPV6" = "yes" ]; then
     #ip6=`ifconfig | grep inet6 | grep -i global | awk -F " " '{print $3}' | awk -F "/" '{print $1}'`
     IP6=`ip -6 addr | grep inet6 | awk -F '[ \t]+|/' '{print $3}' | grep -v ^::1 | grep -v ^fe80 | head -n 1`
     echo "IP address is ${IP6}"
-    gcloud dns record-sets transaction add --zone=${ZONE} --name="${NAME}" --type="AAAA" --ttl="300" ${IP6} || gcloud dns record-sets transaction abort; exit 1
+    gcloud dns record-sets transaction add --zone=${ZONE} --name="${DOMAIN}." --type="AAAA" --ttl="300" ${IP6} || gcloud dns record-sets transaction abort; exit 1
   fi
 
   # Execute transaction
