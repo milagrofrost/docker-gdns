@@ -3,8 +3,7 @@ FROM phusion/baseimage:0.9.19
 MAINTAINER David Becerril <david@davebv.com>
 
 # Add gcloud engine
-RUN export CLOUD_SDK_REPO="cloud-sdk-$(lsb_release -c -s)"
-RUN echo "deb https://packages.cloud.google.com/apt $CLOUD_SDK_REPO main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+RUN echo "deb https://packages.cloud.google.com/apt cloud-sdk-$(lsb_release -c -s) main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
 RUN curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
 
 RUN apt-get -qq update
