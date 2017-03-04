@@ -27,7 +27,7 @@ fi
 if [ -z "$IPV4" ]; then
   IPV4='no'
 elif [ "$IPV4" = "yes" ]; then
-  echo "Using IPV6 for updates"
+  echo "Using IPV4 for updates"
 else
   echo "For IPv4, please use IPV4=yes in gdns.conf"
   IPV4='no'
@@ -89,38 +89,37 @@ do
   # Obtain domain lists
   domainList=$(gcloud dns record-sets list --zone ${ZONE} | grep ^${DOMAIN})
 
-  gcloud dns record-sets transaction start -z="$ZONE" || exit 1
+  gcloud dns record-sets transaction start -z="$ZONE" || { exit 1; }
   if [ -n "$domainList" ]; then
-    echo "Updating the entries:"
-    echo ${domainList}
-    for line in ${domainList}
-    do
-      NAME=$(echo $line | awk '{print $1}')
-      TYPE=$(echo $line | awk '{print $2}')
-      TTL=$(echo $line | awk '{print $3}')
-      DATA=$(echo $line | awk '{print $4}')
-      gcloud dns record-sets transaction remove --zone=${ZONE} --name="${NAME}" --type="${TYPE}" --ttl="${TTL}" ${DATA} || gcloud dns record-sets transaction abort; exit 1
-    done
+    while read -r line; do
+      echo "Updating the entry:"
+      echo ${line}
+      NAME=$(echo ${line} | awk '{print $1}')
+      TYPE=$(echo ${line} | awk '{print $2}')
+      TTL=$(echo ${line} | awk '{print $3}')
+      DATA=$(echo ${line} | awk '{print $4}')
+      gcloud dns record-sets transaction remove --zone=${ZONE} --name="${NAME}" --type="${TYPE}" --ttl="${TTL}" ${DATA} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
+    done <<< "$domainList"
   else
     echo "Entries do not exist, so will creat only new entries"
   fi
 
   # Add transactions
   if [ "$IPV4" = "yes" ]; then
-    IP4=$(dig o-o.myaddr.l.google.com @ns1.google.com TXT +short)
+    IP4=$(dig o-o.myaddr.l.google.com @ns1.google.com TXT +short | sed 's/"//g')
     echo "IPv4 address is ${IP4}"
-    gcloud dns record-sets transaction add --zone=${ZONE} --name="${DOMAIN}." --type="A" --ttl="300" ${IP4} || gcloud dns record-sets transaction abort; exit 1
+    gcloud dns record-sets transaction add --zone=${ZONE} --name="${DOMAIN}." --type="A" --ttl="300" ${IP4} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
   fi
 
   if [ "$IPV6" = "yes" ]; then
     #ip6=`ifconfig | grep inet6 | grep -i global | awk -F " " '{print $3}' | awk -F "/" '{print $1}'`
     IP6=`ip -6 addr | grep inet6 | awk -F '[ \t]+|/' '{print $3}' | grep -v ^::1 | grep -v ^fe80 | head -n 1`
     echo "IP address is ${IP6}"
-    gcloud dns record-sets transaction add --zone=${ZONE} --name="${DOMAIN}." --type="AAAA" --ttl="300" ${IP6} || gcloud dns record-sets transaction abort; exit 1
+    gcloud dns record-sets transaction add --zone=${ZONE} --name="${DOMAIN}." --type="AAAA" --ttl="300" ${IP6} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
   fi
 
   # Execute transaction
-  gcloud dns record-sets transaction execute --zone=${ZONE} || gcloud dns record-sets transaction abort; exit 1
+  gcloud dns record-sets transaction execute --zone=${ZONE} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
 
 
   sleep $INTERVAL
