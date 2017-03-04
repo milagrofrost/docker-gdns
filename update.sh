@@ -53,7 +53,7 @@ if [[ "${INTERVAL: -1}" == 'm' && "${INTERVAL:0:-1}" -lt 5 ]]; then
 fi
 
 if [ -n "$GCLOUD_AUTH" ]; then
-  autFile=/root/gdns/auth.json
+  authFile=/root/gdns/auth.json
   type openssl >/dev/null 2>&1 || { echo >&2 "I require openssl but it's not installed.  Aborting."; exit 1; }
   echo ${GCLOUD_AUTH} | openssl enc -base64 -d > ${authFile} || exit 1
   gcloud auth activate-service-account --key-file=${authFile} || exit 1
