@@ -97,12 +97,12 @@ do
   if [ -n "$domainList" ]; then
     while read -r line; do
       echo "Updating the entry:"
-      echo ${line}
+      echo "${line}"
       if [[ "$TYPE" = "A" ]]; then
-        IP4_CURRENT=${line}
+        IP4_CURRENT="${line}"
       fi
       if [[ "$TYPE" = "AAAA" ]]; then
-        IP6_CURRENT=${line}
+        IP6_CURRENT="${line}"
       fi
     done <<< "$domainList"
   else
@@ -117,10 +117,12 @@ do
     DATA=$(echo ${IP4_CURRENT} | awk '{print $4}')
 
     IP4=$(dig o-o.myaddr.l.google.com @ns1.google.com TXT +short | sed 's/"//g')
-    echo "Old IPv4 was \'${DATA}\'"
-    echo "New IPv4 address is \'${IP4}\'"
+    echo "Old IPv4 was '${DATA}'"
+    echo "New IPv4 address is '${IP4}'"
     if [[ "$DATA" != "$IP4" ]]; then
-      gcloud dns record-sets transaction remove --zone=${ZONE} --name="${NAME}" --type="${TYPE}" --ttl="${TTL}" ${DATA} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
+      if [ -n "$IP4_CURRENT" ]; then
+        gcloud dns record-sets transaction remove --zone=${ZONE} --name="${NAME}" --type="${TYPE}" --ttl="${TTL}" ${DATA} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
+      fi
       gcloud dns record-sets transaction add --zone=${ZONE} --name="${DOMAIN}." --type="A" --ttl="300" ${IP4} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
       IP_HAS_CHANGED="yes"
     else
@@ -136,10 +138,12 @@ do
 
     #ip6=`ifconfig | grep inet6 | grep -i global | awk -F " " '{print $3}' | awk -F "/" '{print $1}'`
     IP6=`ip -6 addr | grep inet6 | awk -F '[ \t]+|/' '{print $3}' | grep -v ^::1 | grep -v ^fe80 | head -n 1`
-    echo "Old IPv6 was \'${DATA}\'"
-    echo "New IPv6 address is \'${IP6}\'"
+    echo "Old IPv6 was '${DATA}'"
+    echo "New IPv6 address is '${IP6}'"
     if [[ "$DATA" != "$IP6" ]]; then
-      gcloud dns record-sets transaction remove --zone=${ZONE} --name="${NAME}" --type="${TYPE}" --ttl="${TTL}" ${DATA} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
+      if [ -n "$IP6_CURRENT" ]; then
+        gcloud dns record-sets transaction remove --zone=${ZONE} --name="${NAME}" --type="${TYPE}" --ttl="${TTL}" ${DATA} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
+      fi
       gcloud dns record-sets transaction add --zone=${ZONE} --name="${DOMAIN}." --type="AAAA" --ttl="300" ${IP6} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
       IP_HAS_CHANGED="yes"
     else
