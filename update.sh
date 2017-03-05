@@ -98,6 +98,7 @@ do
     while read -r line; do
       echo "Updating the entry:"
       echo "${line}"
+      TYPE=$(echo ${IP6_CURRENT} | awk '{print $2}')
       if [[ "$TYPE" = "A" ]]; then
         IP4_CURRENT="${line}"
       fi
