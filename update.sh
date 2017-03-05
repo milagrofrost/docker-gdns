@@ -89,6 +89,10 @@ do
   # Obtain domain lists
   domainList=$(gcloud dns record-sets list --zone ${ZONE} | grep ^${DOMAIN})
 
+  IP4_CURRENT=
+  IP6_CURRENT=
+  IP_HAS_CHANGED=
+
   gcloud dns record-sets transaction start -z="$ZONE" || { exit 1; }
   if [ -n "$domainList" ]; then
     while read -r line; do
@@ -98,7 +102,14 @@ do
       TYPE=$(echo ${line} | awk '{print $2}')
       TTL=$(echo ${line} | awk '{print $3}')
       DATA=$(echo ${line} | awk '{print $4}')
-      gcloud dns record-sets transaction remove --zone=${ZONE} --name="${NAME}" --type="${TYPE}" --ttl="${TTL}" ${DATA} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
+      if [[ "$TYPE" = "A" ]]; then
+        IP4_CURRENT=${line}
+        gcloud dns record-sets transaction remove --zone=${ZONE} --name="${NAME}" --type="${TYPE}" --ttl="${TTL}" ${DATA} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
+      fi
+      if [[ "$TYPE" = "AAAA" ]]; then
+        IP6_CURRENT=${line}
+        gcloud dns record-sets transaction remove --zone=${ZONE} --name="${NAME}" --type="${TYPE}" --ttl="${TTL}" ${DATA} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
+      fi
     done <<< "$domainList"
   else
     echo "Entries do not exist, so will creat only new entries"
@@ -106,21 +117,49 @@ do
 
   # Add transactions
   if [ "$IPV4" = "yes" ]; then
+    NAME=$(echo ${IP4_CURRENT} | awk '{print $1}')
+    TYPE=$(echo ${IP4_CURRENT} | awk '{print $2}')
+    TTL=$(echo ${IP4_CURRENT} | awk '{print $3}')
+    DATA=$(echo ${IP4_CURRENT} | awk '{print $4}')
+
     IP4=$(dig o-o.myaddr.l.google.com @ns1.google.com TXT +short | sed 's/"//g')
-    echo "IPv4 address is ${IP4}"
-    gcloud dns record-sets transaction add --zone=${ZONE} --name="${DOMAIN}." --type="A" --ttl="300" ${IP4} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
+    echo "Old IPv4 was ${DATA}"
+    echo "New IPv4 address is ${IP4}"
+    if [[ "$DATA" =~ "$IP4" ]]; then
+      gcloud dns record-sets transaction remove --zone=${ZONE} --name="${NAME}" --type="${TYPE}" --ttl="${TTL}" ${DATA} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
+      gcloud dns record-sets transaction add --zone=${ZONE} --name="${DOMAIN}." --type="A" --ttl="300" ${IP4} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
+      IP_HAS_CHANGED="yes"
+    else
+      echo "IP4 are the same, not updating."
+    fi
   fi
 
   if [ "$IPV6" = "yes" ]; then
+    NAME=$(echo ${IP6_CURRENT} | awk '{print $1}')
+    TYPE=$(echo ${IP6_CURRENT} | awk '{print $2}')
+    TTL=$(echo ${IP6_CURRENT} | awk '{print $3}')
+    DATA=$(echo ${IP6_CURRENT} | awk '{print $4}')
+
     #ip6=`ifconfig | grep inet6 | grep -i global | awk -F " " '{print $3}' | awk -F "/" '{print $1}'`
     IP6=`ip -6 addr | grep inet6 | awk -F '[ \t]+|/' '{print $3}' | grep -v ^::1 | grep -v ^fe80 | head -n 1`
-    echo "IP address is ${IP6}"
-    gcloud dns record-sets transaction add --zone=${ZONE} --name="${DOMAIN}." --type="AAAA" --ttl="300" ${IP6} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
+    echo "Old IPv6 was ${DATA}"
+    echo "New IPv6 address is ${IP6}"
+    if [[ "$DATA" =~ "$IP6" ]]; then
+      gcloud dns record-sets transaction remove --zone=${ZONE} --name="${NAME}" --type="${TYPE}" --ttl="${TTL}" ${DATA} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
+      gcloud dns record-sets transaction add --zone=${ZONE} --name="${DOMAIN}." --type="AAAA" --ttl="300" ${IP6} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
+      IP_HAS_CHANGED="yes"
+    else
+      echo "IP6 are the same, not updating."
+    fi
   fi
 
   # Execute transaction
-  gcloud dns record-sets transaction execute --zone=${ZONE} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
-
+  if [[ "$IP_HAS_CHANGED" = "yes" ]]; then
+    gcloud dns record-sets transaction execute --zone=${ZONE} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
+  else
+    echo "IP has not changed, aborting transaction."
+    gcloud dns record-sets transaction abort --zone=${ZONE}
+  fi
 
   sleep $INTERVAL
 done
