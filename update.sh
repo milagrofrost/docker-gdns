@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 # Search for custom config file, if it doesn't exist, copy the default one
 if [ ! -f /config/gdns.conf ]; then
@@ -62,7 +62,6 @@ if [ ! -z "$INTERVAL" ]; then
 fi
 
 if [ -f '/root/google-cloud-sdk/path.bash.inc' ]; then source '/root/google-cloud-sdk/path.bash.inc'; fi
-ls /root/google-cloud-sdk/bin/
 GCLOUD=/root/google-cloud-sdk/bin/gcloud
 
 if [ -n "$GCLOUD_AUTH" ]; then
@@ -160,6 +159,11 @@ do
     fi
   fi
 
+  # Do not execute any transaction if DEBUG set
+  if [ ! -z "$DEBUG" ]; then
+    IP_HAS_CHANGED="no"
+  fi
+
   # Execute transaction
   if [[ "$IP_HAS_CHANGED" = "yes" ]]; then
     ${GCLOUD} dns record-sets transaction execute --zone=${ZONE} || { ${GCLOUD} dns record-sets transaction abort --zone=${ZONE}; exit 1; }
@@ -168,7 +172,7 @@ do
     ${GCLOUD} dns record-sets transaction abort --zone=${ZONE}
   fi
 
-  if [ -z ${INTERVAL} ]; then
+  if [ -z "${INTERVAL}" ]; then
     exit 0
   fi
   sleep $INTERVAL

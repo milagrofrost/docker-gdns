@@ -5,8 +5,8 @@ LABEL maintainer "David Becerril <david@davebv.com>"
 #RUN apk update && apk add ca-certificates && update-ca-certificates
 
 # Begin google cloud sdk install
-RUN apk update && apk add openssl
-RUN apk add python
+RUN apk add --update python bash openssl bind-tools
+RUN rm -rf /var/cache/apk/*
 
 WORKDIR /root
 
@@ -34,5 +34,5 @@ RUN chmod +x update.sh
 # Adds the template configuration
 ADD gdns.conf gdns.conf
 
-ENTRYPOINT ["/root/gdns/update.sh"]
+CMD ["/root/gdns/update.sh"]
 
