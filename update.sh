@@ -3,14 +3,23 @@
 # Search for custom config file, if it doesn't exist, copy the default one
 if [ ! -f /config/gdns.conf ]; then
   echo "Creating config file. Please do not forget to enter your domain and token info on gdns.conf"
-  cp /root/gdns/gdns.conf /config/gdns.conf
+  cp ${gdns_root}/gdns.conf /config/gdns.conf
   chmod a+w /config/gdns.conf
   exit 1
 fi
 
+# Source variables from config file:
 tr -d '\r' < /config/gdns.conf > /tmp/gdns.conf
-
 . /tmp/gdns.conf
+
+# Check configuration
+if [ -z "$ZONE" ]; then
+  echo "ZONE must be defined in gdns.conf"
+  exit 1
+elif [ "$ZONE" = "yourzone" ]; then
+  echo "Please enter your zone in gdns.conf"
+  exit 1
+fi
 
 if [ -z "$DOMAIN" ]; then
   echo "DOMAIN must be defined in gdns.conf"
@@ -18,10 +27,6 @@ if [ -z "$DOMAIN" ]; then
 elif [ "$DOMAIN" = "yourdomain" ]; then
   echo "Please enter your domain in gdns.conf"
   exit 1
-fi
-
-if [ -z "$INTERVAL" ]; then
-  INTERVAL='30m'
 fi
 
 if [ -z "$IPV4" ]; then
@@ -42,18 +47,20 @@ else
   IPV6='no'
 fi
 
-if [[ ! "$INTERVAL" =~ ^[0-9]+[mhd]$ ]]; then
-  echo "INTERVAL must be a number followed by m, h, or d. Example: 5m"
-  exit 1
-fi
+if [ ! -z "$INTERVAL" ]; then
+  if [[ ! "$INTERVAL" =~ ^[0-9]+[mhd]$ ]]; then
+    echo "INTERVAL must be a number followed by m, h, or d. Example: 5m"
+    exit 1
+  fi
 
-if [[ "${INTERVAL: -1}" == 'm' && "${INTERVAL:0:-1}" -lt 5 ]]; then
-  echo "The shortest allowed INTERVAL is 5 minutes"
-  exit 1
+  if [[ "${INTERVAL: -1}" == 'm' && "${INTERVAL:0:-1}" -lt 5 ]]; then
+    echo "The shortest allowed INTERVAL is 5 minutes"
+    exit 1
+  fi
 fi
 
 if [ -n "$GCLOUD_AUTH" ]; then
-  authFile=/root/gdns/auth.json
+  authFile=${gdns_root}/auth.json
   type openssl >/dev/null 2>&1 || { echo >&2 "I require openssl but it's not installed.  Aborting."; exit 1; }
   echo ${GCLOUD_AUTH} | openssl enc -base64 -d > ${authFile} || exit 1
   gcloud auth activate-service-account --key-file="${authFile}" ${GCLOUD_ACCOUNT} || exit 1
@@ -61,7 +68,7 @@ elif [ -n "$GCLOUD_AUTH_FILE" ]; then
   authFile=/config/${GCLOUD_AUTH_FILE}
   gcloud auth activate-service-account --key-file="${authFile}" ${GCLOUD_ACCOUNT} || exit 1
 else
-  echo "No auth file provided, please read README"
+  echo "No auth file provided, please read README.md"
   exit 1
 fi
 
@@ -77,9 +84,8 @@ IPCMD=ip
 # ip -6 addr | grep inet6 | awk -F '[ \t]+|/' '{print $3}' | grep -v ^::1 | grep -v ^fe80 | head -n 1
 # ifconfig | grep inet6 | grep -i global | awk -F " " '{print $3}' | awk -F "/" '{print $1}'
 
+# Check if IP command is installed
 type $IPCMD >/dev/null 2>&1 || { echo >&2 "I require $IPCMD but it's not installed.  Aborting."; exit 1; }
-
-
 
 #-----------------------------------------------------------------------------------------------------------------------
 
@@ -160,5 +166,8 @@ do
     gcloud dns record-sets transaction abort --zone=${ZONE}
   fi
 
+  if [ -z ${INTERVAL} ]; then
+    exit 0
+  fi
   sleep $INTERVAL
 done

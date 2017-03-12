@@ -13,10 +13,15 @@ sudo docker run -d \
     --name=gdns \
     -v /etc/localtime:/etc/localtime:ro \
     -v /config/dir/path:/config \
-    -e "GCLOUD_AUTH=$(cat auth.json | openssl enc -base64)" \
     davebv/docker-gdns
 ```
-For authentication, you will need to provide the auth key file from  a service account page. How to Authorizing with a service account (https://cloud.google.com/sdk/docs/authorizing).
+For authentication, you will need to provide the auth key file from a service account page.
+How to Authorizing with a service account (https://cloud.google.com/sdk/docs/authorizing).
+
+If you would like to pass it as a environment variable, include this in your docker run command:
+```bash
+    -e "GCLOUD_AUTH=$(cat auth.json | openssl enc -base64)"
+```
 
 When run for the first time, a file named gdns.conf will be created in the config dir, and the container will exit. Edit this file, adding your domain and token. Then rerun the command.
 

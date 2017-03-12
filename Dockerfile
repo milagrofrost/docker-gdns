@@ -1,22 +1,37 @@
-FROM phusion/baseimage:0.9.19
+FROM alpine:latest
 
-MAINTAINER David Becerril <david@davebv.com>
+LABEL maintainer "David Becerril <david@davebv.com>"
 
-# Add gcloud engine
-RUN echo "deb https://packages.cloud.google.com/apt cloud-sdk-$(lsb_release -c -s) main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-RUN curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+#RUN apk update && apk add ca-certificates && update-ca-certificates
 
-RUN apt-get -qq update
-RUN apt-get -qq install -y google-cloud-sdk iproute2 dnsutils
+# Begin google cloud sdk install
+RUN apk update && apk add openssl
+RUN apk add python
 
-VOLUME ["/config"]
+WORKDIR /root
 
-# Add dynamic dns script
-ADD update.sh /root/gdns/update.sh
-RUN chmod +x /root/gdns/update.sh
+ENV GVERSION 146.0.0
 
-# Create template config file
-ADD gdns.conf /root/gdns/gdns.conf
+ENV gcloud_sdk google-cloud-sdk-${GVERSION}-linux-x86_64.tar.gz
 
-# Run update.sh immediately when the container starts, and start cron for subsequent runs
-CMD /root/gdns/update.sh
+ENV gcloud_addr https://dl.google.com/dl/cloudsdk/channels/rapid/downloads
+
+RUN wget ${gcloud_addr}/${gcloud_sdk}
+RUN tar -xvzf ${gcloud_sdk}
+RUN rm ${gcloud_sdk}
+
+RUN ./google-cloud-sdk/install.sh -q
+# End google cloud sdk install
+
+VOLUME /config
+
+ENV gdns_root /root/gdns
+
+WORKDIR ${gdns_root}
+ADD update.sh update.sh
+RUN chmod +x update.sh
+
+# Adds the template configuration
+ADD gdns.conf gdns.conf
+
+ENTRYPOINT ["sh", "-c", "${gdns_root}/update.sh"]
