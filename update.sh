@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env sh
 
 # Search for custom config file, if it doesn't exist, copy the default one
 if [ ! -f /config/gdns.conf ]; then
@@ -171,3 +171,4 @@ do
   fi
   sleep $INTERVAL
 done
+

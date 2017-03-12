@@ -34,4 +34,5 @@ RUN chmod +x update.sh
 # Adds the template configuration
 ADD gdns.conf gdns.conf
 
-ENTRYPOINT ["sh", "-c", "${gdns_root}/update.sh"]
+ENTRYPOINT ["/root/gdns/update.sh"]
+
