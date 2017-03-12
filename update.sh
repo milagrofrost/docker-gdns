@@ -53,32 +53,34 @@ if [ ! -z "$INTERVAL" ]; then
     exit 1
   fi
 
-  if [[ "${INTERVAL: -1}" == 'm' && "${INTERVAL:0:-1}" -lt 5 ]]; then
+  [[ ! "${INTERVAL%?}" -eq 0 ]] || { echo "Interval cannot be 0!"; exit 1; }
+
+  if [[ "${INTERVAL//[0-9]}" == 'm' && "${INTERVAL%?}" -lt 5 ]]; then
     echo "The shortest allowed INTERVAL is 5 minutes"
     exit 1
   fi
 fi
 
+if [ -f '/root/google-cloud-sdk/path.bash.inc' ]; then source '/root/google-cloud-sdk/path.bash.inc'; fi
+ls /root/google-cloud-sdk/bin/
+GCLOUD=/root/google-cloud-sdk/bin/gcloud
+
 if [ -n "$GCLOUD_AUTH" ]; then
   authFile=${gdns_root}/auth.json
   type openssl >/dev/null 2>&1 || { echo >&2 "I require openssl but it's not installed.  Aborting."; exit 1; }
   echo ${GCLOUD_AUTH} | openssl enc -base64 -d > ${authFile} || exit 1
-  gcloud auth activate-service-account --key-file="${authFile}" ${GCLOUD_ACCOUNT} || exit 1
+  ${GCLOUD} auth activate-service-account --key-file="${authFile}" ${GCLOUD_ACCOUNT} || exit 1
 elif [ -n "$GCLOUD_AUTH_FILE" ]; then
   authFile=/config/${GCLOUD_AUTH_FILE}
-  gcloud auth activate-service-account --key-file="${authFile}" ${GCLOUD_ACCOUNT} || exit 1
+  ${GCLOUD} auth activate-service-account --key-file="${authFile}" ${GCLOUD_ACCOUNT} || exit 1
 else
   echo "No auth file provided, please read README.md"
   exit 1
 fi
 
-gcloud config set project ${GCLOUD_PROJECT}
+${GCLOUD} config set project ${GCLOUD_PROJECT}
 
 #-----------------------------------------------------------------------------------------------------------------------
-
-function ts {
-  echo [`date '+%b %d %X'`]
-}
 
 IPCMD=ip
 # ip -6 addr | grep inet6 | awk -F '[ \t]+|/' '{print $3}' | grep -v ^::1 | grep -v ^fe80 | head -n 1
@@ -93,13 +95,13 @@ while true
 do
 
   # Obtain domain lists
-  domainList=$(gcloud dns record-sets list --zone ${ZONE} | grep ^${DOMAIN})
+  domainList=$(${GCLOUD} dns record-sets list --zone ${ZONE} | grep ^${DOMAIN})
 
   IP4_CURRENT=
   IP6_CURRENT=
   IP_HAS_CHANGED=
 
-  gcloud dns record-sets transaction start -z="$ZONE" || { exit 1; }
+  ${GCLOUD} dns record-sets transaction start -z="$ZONE" || { exit 1; }
   if [ -n "$domainList" ]; then
     while read -r line; do
       echo "Updating the entry:"
@@ -128,9 +130,9 @@ do
     echo "New IPv4 address is '${IP4}'"
     if [[ "$DATA" != "$IP4" ]]; then
       if [ -n "$IP4_CURRENT" ]; then
-        gcloud dns record-sets transaction remove --zone=${ZONE} --name="${NAME}" --type="${TYPE}" --ttl="${TTL}" ${DATA} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
+        ${GCLOUD} dns record-sets transaction remove --zone=${ZONE} --name="${NAME}" --type="${TYPE}" --ttl="${TTL}" ${DATA} || { ${GCLOUD} dns record-sets transaction abort --zone=${ZONE}; exit 1; }
       fi
-      gcloud dns record-sets transaction add --zone=${ZONE} --name="${DOMAIN}." --type="A" --ttl="300" ${IP4} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
+      ${GCLOUD} dns record-sets transaction add --zone=${ZONE} --name="${DOMAIN}." --type="A" --ttl="300" ${IP4} || { ${GCLOUD} dns record-sets transaction abort --zone=${ZONE}; exit 1; }
       IP_HAS_CHANGED="yes"
     else
       echo "IP4 are the same, not updating."
@@ -149,9 +151,9 @@ do
     echo "New IPv6 address is '${IP6}'"
     if [[ "$DATA" != "$IP6" ]]; then
       if [ -n "$IP6_CURRENT" ]; then
-        gcloud dns record-sets transaction remove --zone=${ZONE} --name="${NAME}" --type="${TYPE}" --ttl="${TTL}" ${DATA} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
+        ${GCLOUD} dns record-sets transaction remove --zone=${ZONE} --name="${NAME}" --type="${TYPE}" --ttl="${TTL}" ${DATA} || { ${GCLOUD} dns record-sets transaction abort --zone=${ZONE}; exit 1; }
       fi
-      gcloud dns record-sets transaction add --zone=${ZONE} --name="${DOMAIN}." --type="AAAA" --ttl="300" ${IP6} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
+      ${GCLOUD} dns record-sets transaction add --zone=${ZONE} --name="${DOMAIN}." --type="AAAA" --ttl="300" ${IP6} || { ${GCLOUD} dns record-sets transaction abort --zone=${ZONE}; exit 1; }
       IP_HAS_CHANGED="yes"
     else
       echo "IP6 are the same, not updating."
@@ -160,10 +162,10 @@ do
 
   # Execute transaction
   if [[ "$IP_HAS_CHANGED" = "yes" ]]; then
-    gcloud dns record-sets transaction execute --zone=${ZONE} || { gcloud dns record-sets transaction abort --zone=${ZONE}; exit 1; }
+    ${GCLOUD} dns record-sets transaction execute --zone=${ZONE} || { ${GCLOUD} dns record-sets transaction abort --zone=${ZONE}; exit 1; }
   else
     echo "IP has not changed, aborting transaction."
-    gcloud dns record-sets transaction abort --zone=${ZONE}
+    ${GCLOUD} dns record-sets transaction abort --zone=${ZONE}
   fi
 
   if [ -z ${INTERVAL} ]; then
