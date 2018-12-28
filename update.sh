@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 
-if [ -n "$ZONE" ]; then
+if [[ -n "$ZONE" ]]; then
 
-  echo "Detected ENV varibales from YAML.  Ignoring conf file..."
+  echo "Detected ZONE ENV variable from extra_parameters.  Ignoring conf file..."
 
 else
+  echo "Using gdns.conf file since ZONE env was not specified in extra_parameters"
   # Search for custom config file, if it doesn't exist, copy the default one
   if [ ! -f /config/gdns.conf ]; then
     echo "Creating config file. Please do not forget to enter your domain and token info on gdns.conf"
@@ -15,15 +16,14 @@ else
 
   # Source variables from config file:
   tr -d '\r' < /config/gdns.conf > /tmp/gdns.conf
-  . /tmp/gdns.config
+  . /tmp/gdns.conf
 
 fi
 
 
-
 # Check configuration
 if [ -z "$ZONE" ]; then
-  echo "ZONE must be defined"
+  echo "ZONE must be defined in gdns.conf or in extra_paramaters"
   exit 1
 elif [ "$ZONE" = "yourzone" ]; then
   echo "Please enter your zone in gdns.conf"
@@ -31,19 +31,41 @@ elif [ "$ZONE" = "yourzone" ]; then
 fi
 
 if [ -z "$DOMAIN" ]; then
-  echo "DOMAIN must be defined"
+  echo "DOMAIN must be defined in gdns.conf or in extra_paramaters"
   exit 1
 elif [ "$DOMAIN" = "yourdomain" ]; then
   echo "Please enter your domain in gdns.conf"
   exit 1
 fi
 
+if [ -z "$GCLOUD_ACCOUNT" ]; then
+  echo "GCLOUD_ACCOUNT must be defined in gdns.conf or in extra_paramaters"
+  exit 1
+fi
+
+if [ -z "$GCLOUD_PROJECT" ]; then
+  echo "GCLOUD_PROJECT must be defined in gdns.conf or in extra_paramaters"
+  exit 1
+fi
+
+if [[ -z "$GCLOUD_AUTH_FILE" && "$GCLOUD_AUTH" ]]; then
+  echo "$GCLOUD_AUTH_FILE or $GCLOUD_AUTH must be defined in gdns.conf or in extra_paramaters"
+  exit 1
+fi
+
+
+if [[ -z "$IPV4" && "$IPV6" ]]; then
+  echo "$IPV4 or $IPV6 must be defined (yes/no) in gdns.conf or in extra_paramaters"
+  exit 1
+fi
+
+
 if [ -z "$IPV4" ]; then
   IPV4='no'
 elif [ "$IPV4" = "yes" ]; then
   echo "Using IPV4 for updates"
 else
-  echo "For IPv4, please use IPV4=yes in gdns.conf"
+  echo "For IPv4, please use IPV4=yes in gdns.conf or in extra_paramaters"
   IPV4='no'
 fi
 
@@ -52,7 +74,7 @@ if [ -z "$IPV6" ]; then
 elif [ "$IPV6" = "yes" ]; then
   echo "Using IPV6 for updates"
 else
-  echo "For IPv6, please use IPV6=yes in gdns.conf"
+  echo "For IPv6, please use IPV6=yes in gdns.conf or in extra_paramaters"
   IPV6='no'
 fi
 
@@ -72,7 +94,6 @@ fi
 
 if [ -f '/root/google-cloud-sdk/path.bash.inc' ]; then source '/root/google-cloud-sdk/path.bash.inc'; fi
 GCLOUD=/root/google-cloud-sdk/bin/gcloud
-
 if [ -n "$GCLOUD_AUTH" ]; then
   authFile=${gdns_root}/auth.json
   type openssl >/dev/null 2>&1 || { echo >&2 "I require openssl but it's not installed.  Aborting."; exit 1; }
@@ -140,8 +161,8 @@ do
       if [ -n "$IP4_CURRENT" ]; then
         ${GCLOUD} dns record-sets transaction remove --zone=${ZONE} --name="${NAME}" --type="${TYPE}" --ttl="${TTL}" ${DATA} || { ${GCLOUD} dns record-sets transaction abort --zone=${ZONE}; exit 1; }
       fi
-      ${GCLOUD} dns record-sets transaction add --zone=${ZONE} --name="${DOMAIN}." --type="A" --ttl="300" ${IP4} || { ${GCLOUD} dns record-sets transaction abort --zone=${ZONE}; exit 1; }
-      IP_HAS_CHANGED="yes"
+        ${GCLOUD} dns record-sets transaction add --zone=${ZONE} --name="${DOMAIN}." --type="A" --ttl="300" ${IP4} || { ${GCLOUD} dns record-sets transaction abort --zone=${ZONE}; exit 1; }
+        IP_HAS_CHANGED="yes"
     else
       echo "IP4 are the same, not updating."
     fi
