@@ -13,13 +13,13 @@ sudo docker run -d \
     --name=gdns \
     -v /etc/localtime:/etc/localtime:ro \
     -v /config/dir/path:/config \
-    milagrofrost/docker-gdns
-    -e ZONE='zonename-com'
-    -e DOMAIN='site.zonename.com'
-    -e IPV4='yes'
-    -e GCLOUD_ACCOUNT='exampleaccount@genuine-ether-999999.iam.gserviceaccount.com'
-    -e GCLOUD_PROJECT='genuine-ether-99999'
-    -e GCLOUD_AUTH_FILE='auth.json'
+    milagrofrost/docker-gdns \
+    -e ZONE='zonename-com' \
+    -e DOMAIN='site.zonename.com' \
+    -e IPV4='yes' \
+    -e GCLOUD_ACCOUNT='exampleaccount@genuine-ether-999999.iam.gserviceaccount.com' \
+    -e GCLOUD_PROJECT='genuine-ether-99999' \
+    -e GCLOUD_AUTH_FILE='auth.json' 
 ```
 For authentication, you will need to provide the auth key file from a service account page.
 How to Authorizing with a service account (https://cloud.google.com/sdk/docs/authorizing).
