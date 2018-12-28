@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 
-if [ -z "$ZONE" ]; then
+if [ -n "$ZONE" ]; then
 
+  echo "Detected ENV varibales from YAML.  Ignoring conf file..."
+
+else
   # Search for custom config file, if it doesn't exist, copy the default one
   if [ ! -f /config/gdns.conf ]; then
     echo "Creating config file. Please do not forget to enter your domain and token info on gdns.conf"
@@ -12,16 +15,15 @@ if [ -z "$ZONE" ]; then
 
   # Source variables from config file:
   tr -d '\r' < /config/gdns.conf > /tmp/gdns.conf
-  . /tmp/gdns.conf
+  . /tmp/gdns.config
 
 fi
-else
-  echo "Detected ENV varibales from YAML.  Ignoring conf file..."
+
 
 
 # Check configuration
 if [ -z "$ZONE" ]; then
-  echo "ZONE must be defined in gdns.conf"
+  echo "ZONE must be defined"
   exit 1
 elif [ "$ZONE" = "yourzone" ]; then
   echo "Please enter your zone in gdns.conf"
@@ -29,7 +31,7 @@ elif [ "$ZONE" = "yourzone" ]; then
 fi
 
 if [ -z "$DOMAIN" ]; then
-  echo "DOMAIN must be defined in gdns.conf"
+  echo "DOMAIN must be defined"
   exit 1
 elif [ "$DOMAIN" = "yourdomain" ]; then
   echo "Please enter your domain in gdns.conf"
