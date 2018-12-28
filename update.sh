@@ -1,16 +1,23 @@
 #!/usr/bin/env bash
 
-# Search for custom config file, if it doesn't exist, copy the default one
-if [ ! -f /config/gdns.conf ]; then
-  echo "Creating config file. Please do not forget to enter your domain and token info on gdns.conf"
-  cp ${gdns_root}/gdns.conf /config/gdns.conf
-  chmod a+w /config/gdns.conf
-  exit 1
-fi
+if [ -z "$ZONE" ]; then
 
-# Source variables from config file:
-tr -d '\r' < /config/gdns.conf > /tmp/gdns.conf
-. /tmp/gdns.conf
+  # Search for custom config file, if it doesn't exist, copy the default one
+  if [ ! -f /config/gdns.conf ]; then
+    echo "Creating config file. Please do not forget to enter your domain and token info on gdns.conf"
+    cp ${gdns_root}/gdns.conf /config/gdns.conf
+    chmod a+w /config/gdns.conf
+    exit 1
+  fi
+
+  # Source variables from config file:
+  tr -d '\r' < /config/gdns.conf > /tmp/gdns.conf
+  . /tmp/gdns.conf
+
+fi
+else
+  echo "Detected ENV varibales from YAML.  Ignoring conf file..."
+
 
 # Check configuration
 if [ -z "$ZONE" ]; then
@@ -177,4 +184,3 @@ do
   fi
   sleep $INTERVAL
 done
-
