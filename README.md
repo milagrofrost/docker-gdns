@@ -51,9 +51,12 @@ By default only IPV4 is enabled.
 
 Disable IPV4
 `IPV4=no`
+
 Enable IPV4
 `IPV4=yes`
+
 Disable IPV6
 `IPV6=no`
+
 Enable IPV6
 `IPV6=yes`
